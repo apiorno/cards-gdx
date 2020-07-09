@@ -2,7 +2,7 @@ package com.card.game.lwjgl3
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration
-import com.trucardo.game.CardAnimation3D
+import com.trucardo.game.CardAnimationGame
 
 /** Launches the desktop (LWJGL3) application.  */
 object Lwjgl3Launcher {
@@ -12,11 +12,11 @@ object Lwjgl3Launcher {
     }
 
     private fun createApplication(): Lwjgl3Application {
-        return Lwjgl3Application(CardAnimation3D(), defaultConfiguration)
+        return Lwjgl3Application(CardAnimationGame(), defaultConfiguration)
     }
 
     private val defaultConfiguration: Lwjgl3ApplicationConfiguration
-        private get() {
+        get() {
             val configuration = Lwjgl3ApplicationConfiguration()
             configuration.setTitle("SimpleCardAnimation3D")
             configuration.setWindowedMode(640, 480)

@@ -3,7 +3,7 @@ package com.trucardo.game
 import com.badlogic.gdx.math.Vector3
 
 
-class CardAction(private val parent: CardActions) {
+class CardAction(private val parent: CardActionsProvider) {
     private lateinit var card: Card
     private val fromPosition = Vector3()
     private var fromAngle = 0f

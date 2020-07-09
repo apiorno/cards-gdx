@@ -3,10 +3,10 @@ package com.trucardo.game
 import com.badlogic.gdx.utils.Pool
 import ktx.collections.gdxArrayOf
 
-open class CardActions {
+open class CardActionsProvider {
     private var actionPool: Pool<CardAction> = object : Pool<CardAction>(){
          override fun newObject(): CardAction? {
-            return CardAction(this@CardActions)
+            return CardAction(this@CardActionsProvider)
         }
     }
     private var actions = gdxArrayOf<CardAction>()
@@ -25,7 +25,7 @@ open class CardActions {
     fun animate(card: Card?, x: Float, y: Float, z: Float, angle: Float, speed: Float) {
         val action: CardAction = actionPool.obtain()
         action.reset(card!!)
-        action.toPosition[x, y] = z
+        action.toPosition.set(x, y, z)
         action.toAngle = angle
         action.speed = speed
         actions.add(action)

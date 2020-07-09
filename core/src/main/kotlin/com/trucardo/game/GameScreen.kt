@@ -23,7 +23,7 @@ import kotlin.math.min
 import kotlin.math.tan
 
 
-class FirstScreen(private val game: CardAnimation3D) : KtxScreen {
+class GameScreen(private val game: CardAnimationGame) : KtxScreen {
 
 
 
@@ -32,68 +32,78 @@ class FirstScreen(private val game: CardAnimation3D) : KtxScreen {
     private val camera = game.camera
     private lateinit var cameraController : CameraInputController
     private lateinit var deck: CardDeck
-    private lateinit var cards: CardBatch
+    private lateinit var cardBatch: CardBatch
     private lateinit var tableTopModel: Model
     private lateinit var tableTop: ModelInstance
     private lateinit var environment: Environment
     private lateinit var shadowLight: DirectionalShadowLight
     private lateinit var shadowBatch: ModelBatch
-    private lateinit var actions: CardActions
+    private lateinit var actionsProvider: CardActionsProvider
     private val MINIMUM_VIEWPORT_SIZE = 5f
     private var spawnTimer = -1f
     private var pipIdx = -1
     private var suitIdx = 0
-    private val INITIAL_CARD_POSITION_X =0f
-    private val CARD_POSITIONS_X_OFFSET = 0.5f
-    private val CARD_POSITIONS_Y_OFFSET = CARD_POSITIONS_X_OFFSET
-    //private val MAX_CARD_POSITION_X = 6f // FOR 13 CARDS
-    private val MAX_CARD_POSITION_X = 5.5f // FOR 12 CARDS
-
     private var spawnX = -0.5f
     private var spawnY = 0f
     private var spawnZ = 0f
 
     override fun show() {
-        camera.position.set(0f, 0f, 10f)
-        camera.lookAt(0f, 0f, 0f)
-        cameraController = CameraInputController(camera)
-        Gdx.input.inputProcessor = cameraController
-
-        atlas = TextureAtlas(Gdx.files.internal("assets/spanish_deck.atlas"))
-        val material = Material(
-                TextureAttribute.createDiffuse(atlas.textures.first()),
-                BlendingAttribute(false, 1f),
-                FloatAttribute.createAlphaTest(0.5f))
-        cards = CardBatch(material)
-        deck = CardDeck(atlas, -1)
-        //deck = CardDeck(atlas, 3)
-        //val card = deck.getCard(Suit.Spades, Pip.King)
-        val card = deck.getCard(Suit.Spade, Pip.King)
-        card!!.position[3.5f, -2.5f] = 0.01f
-        card.angle = 180f
-        card.update()
-        cards.add(card)
-
-        val builder = ModelBuilder()
-        builder.begin()
-        builder.node().id = "top"
-        val part =builder.part("top", GL20.GL_TRIANGLES, Usage.Position.toLong() or Usage.Normal.toLong(),
-                Material(ColorAttribute.createDiffuse(Color(0x63750A))))
-        BoxShapeBuilder.build(part,0f, 0f, -0.5f, 20f, 20f, 1f)
-        tableTopModel = builder.end()
-        tableTop = ModelInstance(tableTopModel)
-
+        initializeCamera()
+        atlas = TextureAtlas(Gdx.files.internal(DECK_ATLAS_PATH))
+        createCardBatch()
+        deck = CardDeck(atlas, BACK_CARD_INDEX)
+        createBackCard()
+        createTableEntity()
         shadowBatch = ModelBatch(DepthShaderProvider())
-        shadowLight = DirectionalShadowLight(1024, 1024, 10f, 10f, 1f, 20f)
-        shadowLight[0.8f, 0.8f, 0.8f, -.4f, -.4f] = -.4f
+        createShadowLightEntity()
+        createEnvironment()
+        actionsProvider = CardActionsProvider()
+    }
 
-
+    private fun createEnvironment() {
         environment = Environment()
         environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.4f, 0.4f, 0.4f, 1f))
         environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -.4f, -.4f, -.4f))
         environment.shadowMap = shadowLight
+    }
 
-        actions = CardActions()
+    private fun createShadowLightEntity() {
+        shadowLight = DirectionalShadowLight(1024, 1024, 10f, 10f, 1f, 20f)
+        shadowLight.set(0.8f, 0.8f, 0.8f, -.4f, -.4f, -.4f)
+    }
+
+    private fun createTableEntity() {
+        val builder = ModelBuilder()
+        builder.begin()
+        builder.node().id = "top"
+        val part = builder.part("top", GL20.GL_TRIANGLES, Usage.Position.toLong() or Usage.Normal.toLong(),
+                Material(ColorAttribute.createDiffuse(Color(0x63750A))))
+        BoxShapeBuilder.build(part, 0f, 0f, -0.5f, 20f, 20f, 1f)
+        tableTopModel = builder.end()
+        tableTop = ModelInstance(tableTopModel)
+    }
+
+    private fun createCardBatch() {
+        val material = Material(
+                TextureAttribute.createDiffuse(atlas.textures.first()),
+                BlendingAttribute(false, 1f),
+                FloatAttribute.createAlphaTest(0.5f))
+        cardBatch = CardBatch(material)
+    }
+
+    private fun initializeCamera() {
+        camera.position.set(0f, 0f, 10f)
+        camera.lookAt(0f, 0f, 0f)
+        cameraController = CameraInputController(camera)
+        Gdx.input.inputProcessor = cameraController
+    }
+
+    private fun createBackCard() {
+        val card = deck.getCard(Suit.Spades, Pip.King)
+        card!!.position.set(3.5f, -2.5f, 0.01f)
+        card.angle = 180f
+        card.update()
+        cardBatch.add(card)
     }
 
     override fun render(delta: Float) {
@@ -110,17 +120,17 @@ class FirstScreen(private val game: CardAnimation3D) : KtxScreen {
             spawn()
         }
 
-        actions.update(interpolatedDeltaTime)
+        actionsProvider.update(interpolatedDeltaTime)
 
         shadowLight.begin(Vector3.Zero, Vector3.Zero)
         shadowBatch.begin(shadowLight.camera)
-        shadowBatch.render(cards)
+        shadowBatch.render(cardBatch)
         shadowBatch.end()
         shadowLight.end()
 
         modelBatch.begin(camera)
         modelBatch.render(tableTop, environment)
-        modelBatch.render(cards, environment)
+        modelBatch.render(cardBatch, environment)
         modelBatch.end()
     }
     private fun spawn() {
@@ -134,14 +144,14 @@ class FirstScreen(private val game: CardAnimation3D) : KtxScreen {
         val card = deck.getCard(suit, pip)
         card!!.position[3.5f, -2.5f] = 0.01f
         card.angle = 180f
-        if (!cards.contains(card)) cards.add(card)
+        if (!cardBatch.contains(card)) cardBatch.add(card)
         spawnX += CARD_POSITIONS_X_OFFSET
         if (spawnX > MAX_CARD_POSITION_X) {
             spawnX = INITIAL_CARD_POSITION_X
             spawnY = (spawnY + CARD_POSITIONS_Y_OFFSET) % 2f
         }
         spawnZ += 0.001f
-        actions.animate(card, -3.5f + spawnX, 2.5f - spawnY, 0.01f + spawnZ, 0f, 1f)
+        actionsProvider.animate(card, -3.5f + spawnX, 2.5f - spawnY, 0.01f + spawnZ, 0f, 1f)
     }
 
     override fun resize(width: Int, height: Int) {
@@ -172,7 +182,7 @@ class FirstScreen(private val game: CardAnimation3D) : KtxScreen {
     override fun dispose() {
         game.modelBatch.dispose()
         atlas.dispose()
-        cards.dispose()
+        cardBatch.dispose()
         tableTopModel.dispose()
         shadowBatch.dispose()
         shadowLight.dispose()
